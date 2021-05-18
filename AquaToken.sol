@@ -1,23 +1,18 @@
 /**
- *Submitted for verification at BscScan.com on 2021-04-06
-*/
-
-/**
- *Submitted for verification at BscScan.com on 2021-01-18
+ *Submitted for verification at BscScan.com on 2021-05-02
 */
 
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.12;
 
-// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
         return msg.sender;
     }
 
     function _msgData() internal view virtual returns (bytes memory) {
-        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
+        this; 
         return msg.data;
     }
 }
@@ -513,6 +508,7 @@ contract ERC20 is Context, IERC20 {
 
         _totalSupply = _totalSupply.add(amount);
         _balances[account] = _balances[account].add(amount);
+        
         emit Transfer(address(0), account, amount);
     }
 
