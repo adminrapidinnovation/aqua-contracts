@@ -1,5 +1,5 @@
 /**
- *Submitted for verification at BscScan.com on 2021-05-02
+ *Submitted for verification at BscScan.com on 2021-05-18
 */
 
 pragma solidity 0.6.12;
@@ -1342,37 +1342,16 @@ abstract contract Ownable is Context {
     }
 }
 
-interface IPancakeswapFarm {
-    function poolLength() external view returns (uint256);
+interface IBunnyVault {
 
-    function userInfo() external view returns (uint256);
+    // Deposit staking tokens to Bunny Vaults for BUNNY and CAKE allocation.
+    function deposit(uint256 _amount) external;
 
-    // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to)
-        external
-        view
-        returns (uint256);
-
-    // View function to see pending CAKEs on frontend.
-    function pendingCake(uint256 _pid, address _user)
-        external
-        view
-        returns (uint256);
-
-    // Deposit LP tokens to MasterChef for CAKE allocation.
-    function deposit(uint256 _pid, uint256 _amount) external;
-
-    // Withdraw LP tokens from MasterChef.
-    function withdraw(uint256 _pid, uint256 _amount) external;
-
-    // Stake CAKE tokens to MasterChef
-    function enterStaking(uint256 _amount) external;
-
-    // Withdraw CAKE tokens from STAKING.
-    function leaveStaking(uint256 _amount) external;
-
-    // Withdraw without caring about rewards. EMERGENCY ONLY.
-    function emergencyWithdraw(uint256 _pid) external;
+    // Withdraw staking tokens from BunnyVaults.
+    function withdraw(uint256 _amount) external;
+    
+    // Get Cake and bunny tokens as reward
+    function getReward() external;
 }
 
 interface IPancakeRouter01 {
@@ -1731,6 +1710,7 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
     address public aquaFarmAddress;
     address public AQUAAddress;
     address public govAddress; // timelock contract
+    address public constant bunnyToken = 0xC9849E6fdB743d08fAeE3E34dd2D1bc69EA11a51;
     bool public onlyGov = true;
 
     uint256 public lastEarnBlock = 0;
@@ -1766,7 +1746,8 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
     address[] public earnedToToken1Path;
     address[] public token0ToEarnedPath;
     address[] public token1ToEarnedPath;
-
+    address[] public bunnyToEarn;
+    
     event SetSettings(
         uint256 _entranceFeeFactor,
         uint256 _withdrawFeeFactor,
@@ -1839,20 +1820,15 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
         uint256 wantAmt = IERC20(wantAddress).balanceOf(address(this));
         wantLockedTotal = wantLockedTotal.add(wantAmt);
         IERC20(wantAddress).safeIncreaseAllowance(farmContractAddress, wantAmt);
-
-        if (isCAKEStaking) {
-            IPancakeswapFarm(farmContractAddress).enterStaking(wantAmt); // Just for CAKE staking, we dont use deposit()
-        } else {
-            IPancakeswapFarm(farmContractAddress).deposit(pid, wantAmt);
-        }
+        IBunnyVault(farmContractAddress).deposit(wantAmt);
     }
 
     function _unfarm(uint256 _wantAmt) internal virtual {
-        if (isCAKEStaking) {
-            IPancakeswapFarm(farmContractAddress).leaveStaking(_wantAmt); // Just for CAKE staking, we dont use withdraw()
-        } else {
-            IPancakeswapFarm(farmContractAddress).withdraw(pid, _wantAmt);
-        }
+            if(_wantAmt > 0){
+                IBunnyVault(farmContractAddress).withdraw(_wantAmt);
+            }else{
+                IBunnyVault(farmContractAddress).getReward();
+            }
     }
 
     function withdraw(address _userAddress, uint256 _wantAmt)
@@ -1908,15 +1884,38 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
         if (onlyGov) {
             require(msg.sender == govAddress, "!gov");
         }
-
+        
         // Harvest farm tokens
         _unfarm(0);
+        
+        if(bunnyToken != token0Address && bunnyToken != token1Address && earnedAddress != wbnbAddress){
+            
+            uint256 bunnyBalance = IERC20(bunnyToken).balanceOf(address(this));
+            IERC20(bunnyToken).safeApprove(uniRouterAddress, 0);
+            IERC20(bunnyToken).safeIncreaseAllowance(
+            uniRouterAddress,
+            bunnyBalance
+            );
+            
+            if(bunnyBalance > 0){
+              _safeSwap(
+                uniRouterAddress,
+                bunnyBalance,
+                slippageFactor,
+                bunnyToEarn,
+                address(this),
+                block.timestamp.add(600)
+            );  
+            }
+             
+        }
 
         if (earnedAddress == wbnbAddress) {
             _wrapBNB();
         }
 
         // Converts farm tokens into want tokens
+        //earned address is cake token
         uint256 earnedAmt = IERC20(earnedAddress).balanceOf(address(this));
 
         earnedAmt = distributeFees(earnedAmt);
@@ -2216,13 +2215,11 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
     }
 }
 
-contract AquaStrategy_PCS is StratX2 {
-    
+
+contract AquaStartegy_PancakeBunny_Pair is StratX2 {
     address payable public feeAddressesSetter;
-    
     constructor(
         address[] memory _addresses,
-        uint256 _pid,
         bool _isCAKEStaking,
         bool _isSameAssetDeposit,
         bool _isAquaComp,
@@ -2244,10 +2241,10 @@ contract AquaStrategy_PCS is StratX2 {
         wantAddress = _addresses[4];
         token0Address = _addresses[5];
         token1Address = _addresses[6];
+        //CAKE
         earnedAddress = _addresses[7];
 
         farmContractAddress = _addresses[8];
-        pid = _pid;
         isCAKEStaking = _isCAKEStaking;
         isSameAssetDeposit = _isSameAssetDeposit;
         isAquaComp = _isAquaComp;
@@ -2258,14 +2255,14 @@ contract AquaStrategy_PCS is StratX2 {
         earnedToToken1Path = _earnedToToken1Path;
         token0ToEarnedPath = _token0ToEarnedPath;
         token1ToEarnedPath = _token1ToEarnedPath;
-
+        bunnyToEarn = [bunnyToken,_addresses[0],_addresses[7]];
         controllerFee = _controllerFee;
         rewardsAddress = _addresses[10];
         buyBackRate = _buyBackRate;
         buyBackAddress = _addresses[11];
         entranceFeeFactor = _entranceFeeFactor;
         withdrawFeeFactor = _withdrawFeeFactor;
-        feeAddressesSetter = _msgSender(); 
+        feeAddressesSetter = _msgSender();
         transferOwnership(aquaFarmAddress);
     }
     
@@ -2279,4 +2276,6 @@ contract AquaStrategy_PCS is StratX2 {
         depositFeeAddress = _depositFeeAddress;
         withdrawFeeAddress = _withdrawFeeAddress;
     }
+    
+    
 }
