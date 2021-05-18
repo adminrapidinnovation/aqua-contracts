@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at BscScan.com on 2021-05-02
+*/
+
 pragma solidity 0.6.12;
 
 // SPDX-License-Identifier: MIT
@@ -1742,6 +1746,9 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
     uint256 public constant buyBackRateUL = 800;
     address public buyBackAddress = 0x000000000000000000000000000000000000dEaD;
     address public rewardsAddress;
+    
+    address public depositFeeAddress = 0x10BaFF2188e6CEe33e858c6913ef8616Dc0A3e9c;
+    address public withdrawFeeAddress = 0x10BaFF2188e6CEe33e858c6913ef8616Dc0A3e9c;
 
     uint256 public entranceFeeFactor = 9990; // < 0.1% entrance fee - goes to pool + prevents front-running
     uint256 public constant entranceFeeFactorMax = 10000;
@@ -1810,8 +1817,8 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
                 
         uint256 depositFee = _wantAmt.mul(entranceFeeFactorMax.sub(entranceFeeFactor)).div(entranceFeeFactorMax);
         if(depositFee > 0){
-            IERC20(wantAddress).safeIncreaseAllowance(rewardsAddress, depositFee);
-            IERC20(wantAddress).transfer(rewardsAddress, depositFee);
+            IERC20(wantAddress).safeIncreaseAllowance(depositFeeAddress, depositFee);
+            IERC20(wantAddress).transfer(depositFeeAddress, depositFee);
         }
         
         if (isAquaComp) {
@@ -1868,8 +1875,8 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
                 withdrawFeeFactorMax
             );
             uint256 withdrawFee = _wantAmt.mul(withdrawFeeFactorMax.sub(withdrawFeeFactor)).div(withdrawFeeFactorMax);
-            IERC20(wantAddress).safeIncreaseAllowance(rewardsAddress, withdrawFee);
-            IERC20(wantAddress).transfer(rewardsAddress, withdrawFee);
+            IERC20(wantAddress).safeIncreaseAllowance(withdrawFeeAddress, withdrawFee);
+            IERC20(wantAddress).transfer(withdrawFeeAddress, withdrawFee);
         }
 
         if (isAquaComp) {
@@ -2210,6 +2217,9 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
 }
 
 contract AquaStrategy_PCS is StratX2 {
+    
+    address payable public feeAddressesSetter;
+    
     constructor(
         address[] memory _addresses,
         uint256 _pid,
@@ -2255,12 +2265,18 @@ contract AquaStrategy_PCS is StratX2 {
         buyBackAddress = _addresses[11];
         entranceFeeFactor = _entranceFeeFactor;
         withdrawFeeFactor = _withdrawFeeFactor;
-
+        feeAddressesSetter = _msgSender(); 
         transferOwnership(aquaFarmAddress);
     }
+    
+    function changeFeeAddressSetter(address payable _newFeeAddressSetter) public {
+        require(_msgSender() == feeAddressesSetter,"Access denied");
+        feeAddressesSetter = _newFeeAddressSetter;
+    }
+    
+    function changeFeeAddress(address _depositFeeAddress,address _withdrawFeeAddress) public {
+        require(_msgSender() == feeAddressesSetter,"Access denied");
+        depositFeeAddress = _depositFeeAddress;
+        withdrawFeeAddress = _withdrawFeeAddress;
+    }
 }
-
-
-
-
-
