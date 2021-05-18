@@ -1,16 +1,13 @@
 /**
- *Submitted for verification at BscScan.com on 2021-01-09
+ *Submitted for verification at BscScan.com on 2021-05-02
 */
 
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.12;
-
-pragma solidity >=0.6.9 <0.8.0;
 pragma experimental ABIEncoderV2;
 
 // import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SafeMath.sol";
-pragma solidity >=0.6.0 <0.8.0;
 
 /**
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
@@ -1217,9 +1214,9 @@ abstract contract AccessControl is Context {
 }
 
 /**
- * @dev AquaFarm functions that do not require less than the min timelock
+ * @dev PlanetFinance functions that do not require less than the min timelock
  */
-interface IAquaFarm {
+interface IPlanetFinance {
     function add(
         uint256 _allocPoint,
         address _want,
@@ -1719,7 +1716,7 @@ contract TimelockController is AccessControl {
      * @dev Reduced timelock functions
      */
     function scheduleSet(
-        address _aquafarmAddress,
+        address _planetFinanceAddress,
         uint256 _pid,
         uint256 _allocPoint,
         bool _withUpdate,
@@ -1729,7 +1726,7 @@ contract TimelockController is AccessControl {
         bytes32 id =
             keccak256(
                 abi.encode(
-                    _aquafarmAddress,
+                    _planetFinanceAddress,
                     _pid,
                     _allocPoint,
                     _withUpdate,
@@ -1756,7 +1753,7 @@ contract TimelockController is AccessControl {
     }
 
     function executeSet(
-        address _aquafarmAddress,
+        address _planetFinanceAddress,
         uint256 _pid,
         uint256 _allocPoint,
         bool _withUpdate,
@@ -1766,7 +1763,7 @@ contract TimelockController is AccessControl {
         bytes32 id =
             keccak256(
                 abi.encode(
-                    _aquafarmAddress,
+                    _planetFinanceAddress,
                     _pid,
                     _allocPoint,
                     _withUpdate,
@@ -1776,7 +1773,7 @@ contract TimelockController is AccessControl {
             );
 
         _beforeCall(predecessor);
-        IAquaFarm(_aquafarmAddress).set(_pid, _allocPoint, _withUpdate);
+        IPlanetFinance(_planetFinanceAddress).set(_pid, _allocPoint, _withUpdate);
         _afterCall(id);
     }
 
@@ -1796,12 +1793,12 @@ contract TimelockController is AccessControl {
     }
 
     function add(
-        address _aquafarmAddress,
+        address _planetFinanceAddress,
         address _want,
         bool _withUpdate,
         address _strat
     ) public onlyRole(EXECUTOR_ROLE) {
-        IAquaFarm(_aquafarmAddress).add(0, _want, _withUpdate, _strat); // allocPoint = 0. Schedule set (timelocked) to increase allocPoint.
+        IPlanetFinance(_planetFinanceAddress).add(0, _want, _withUpdate, _strat); // allocPoint = 0. Schedule set (timelocked) to increase allocPoint.
     }
 
     function earn(address _stratAddress) public onlyRole(EXECUTOR_ROLE) {
