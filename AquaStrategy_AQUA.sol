@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at BscScan.com on 2021-05-02
+*/
+
 pragma solidity 0.6.12;
 
 // SPDX-License-Identifier: MIT
@@ -1742,6 +1746,9 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
     uint256 public constant buyBackRateUL = 800;
     address public buyBackAddress = 0x000000000000000000000000000000000000dEaD;
     address public rewardsAddress;
+    
+    address public depositFeeAddress = 0x10BaFF2188e6CEe33e858c6913ef8616Dc0A3e9c;
+    address public withdrawFeeAddress = 0x10BaFF2188e6CEe33e858c6913ef8616Dc0A3e9c;
 
     uint256 public entranceFeeFactor = 9990; // < 0.1% entrance fee - goes to pool + prevents front-running
     uint256 public constant entranceFeeFactorMax = 10000;
@@ -1810,8 +1817,8 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
                 
         uint256 depositFee = _wantAmt.mul(entranceFeeFactorMax.sub(entranceFeeFactor)).div(entranceFeeFactorMax);
         if(depositFee > 0){
-            IERC20(wantAddress).safeIncreaseAllowance(rewardsAddress, depositFee);
-            IERC20(wantAddress).transfer(rewardsAddress, depositFee);
+            IERC20(wantAddress).safeIncreaseAllowance(depositFeeAddress, depositFee);
+            IERC20(wantAddress).transfer(depositFeeAddress, depositFee);
         }
         
         if (isAquaComp) {
@@ -1863,10 +1870,13 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
         }
         sharesTotal = sharesTotal.sub(sharesRemoved);
 
-        if (withdrawFeeFactor < withdrawFeeFactorMax) {
+        if (withdrawFeeFactor < withdrawFeeFactorMax && _wantAmt!=0) {
             _wantAmt = _wantAmt.mul(withdrawFeeFactor).div(
                 withdrawFeeFactorMax
             );
+            uint256 withdrawFee = _wantAmt.mul(withdrawFeeFactorMax.sub(withdrawFeeFactor)).div(withdrawFeeFactorMax);
+            IERC20(wantAddress).safeIncreaseAllowance(withdrawFeeAddress, withdrawFee);
+            IERC20(wantAddress).transfer(withdrawFeeAddress, withdrawFee);
         }
 
         if (isAquaComp) {
@@ -2206,9 +2216,9 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
     }
 }
 
-
 contract AquaStrategy_AQUA is StratX2 {
     address[] public users;
+    address payable public feeAddressesSetter;
     mapping(address => uint256) public userLastDepositedTimestamp;
     uint256 public minTimeToWithdraw; // 604800 = 1 week
     uint256 public minTimeToWithdrawUL = 1209600; // 2 weeks
@@ -2303,11 +2313,11 @@ contract AquaStrategy_AQUA is StratX2 {
         
         uint256 depositFee = _wantAmt.mul(entranceFeeFactorMax.sub(entranceFeeFactor)).div(entranceFeeFactorMax);
         if(depositFee > 0){
-            IERC20(wantAddress).safeIncreaseAllowance(rewardsAddress, depositFee);
-            IERC20(wantAddress).transfer(rewardsAddress, depositFee);
+            IERC20(wantAddress).safeIncreaseAllowance(depositFeeAddress, depositFee);
+            IERC20(wantAddress).transfer(depositFeeAddress, depositFee);
         }
 
-        wantLockedTotal = IERC20(AQUAAddress).balanceOf(address(this));
+        wantLockedTotal = IERC20(wantAddress).balanceOf(address(this));
 
         return sharesAdded;
     }
@@ -2338,8 +2348,8 @@ contract AquaStrategy_AQUA is StratX2 {
                 withdrawFeeFactorMax
             );
             uint256 withdrawFee = _wantAmt.mul(withdrawFeeFactorMax.sub(withdrawFeeFactor)).div(withdrawFeeFactorMax);
-            IERC20(wantAddress).safeIncreaseAllowance(rewardsAddress, withdrawFee);
-            IERC20(wantAddress).transfer(rewardsAddress, withdrawFee);
+            IERC20(wantAddress).safeIncreaseAllowance(withdrawFeeAddress, withdrawFee);
+            IERC20(wantAddress).transfer(withdrawFeeAddress, withdrawFee);
         }
 
         // if (isAutoComp) {
@@ -2397,7 +2407,7 @@ contract AquaStrategy_AQUA is StratX2 {
 
         uint256 wantLockedTotalOld = wantLockedTotal;
 
-        wantLockedTotal = IERC20(AQUAAddress).balanceOf(address(this));
+        wantLockedTotal = IERC20(wantAddress).balanceOf(address(this));
 
         emit earned(wantLockedTotalOld, wantLockedTotal);
     }
@@ -2413,6 +2423,17 @@ contract AquaStrategy_AQUA is StratX2 {
 
     function userLength() public view returns (uint256) {
         return users.length;
+    }
+
+    function changeFeeAddressSetter(address payable _newFeeAddressSetter) public {
+        require(_msgSender() == feeAddressesSetter,"Access Denied");
+        feeAddressesSetter = _newFeeAddressSetter;
+    }
+    
+    function changeFeeAddress(address _depositFeeAddress,address _withdrawFeeAddress) public {
+        require(_msgSender() == feeAddressesSetter,"Access Denied");
+        depositFeeAddress = _depositFeeAddress;
+        withdrawFeeAddress = _withdrawFeeAddress;
     }
 
     receive() external payable {}
