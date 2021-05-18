@@ -1,12 +1,11 @@
 /**
- *Submitted for verification at BscScan.com on 2021-01-21
+ *Submitted for verification at BscScan.com on 2021-05-02
 */
 
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.12;
 
-// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
         return msg.sender;
@@ -1404,7 +1403,7 @@ interface IStrategy {
         external
         returns (uint256);
 
-    // Transfer want tokens strategy -> aquaFarm
+    // Transfer want tokens strategy -> planetFinance
     function withdraw(address _userAddress, uint256 _wantAmt)
         external
         returns (uint256);
@@ -1415,7 +1414,7 @@ interface IStrategy {
         address _to
     ) external;
 }
-contract AquaFarmV2 is Ownable, ReentrancyGuard {
+contract PlanetFinance is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -1445,12 +1444,12 @@ contract AquaFarmV2 is Ownable, ReentrancyGuard {
         address strat; // Strategy address that will AQUA compound want tokens
     }
 
-    address public AQUA = 0x1A64b65c1FaffE91c0347B3102b587F5f55C0326;
+    address public AQUA = 0x72B7D61E8fC8cF971960DD9cfA59B8C829D91991;
 
     address public burnAddress = 0x000000000000000000000000000000000000dEaD;
     uint256 public AQUAMaxSupply = 100000e18;
-    uint256 public AQUAPerBlock = 17360000000000000; // AQUA tokens created per block
-    uint256 public startBlock = 0; //https://bscscan.com/block/countdown/3888888
+    uint256 public AQUAPerBlock = 17361100000000000; // AQUA tokens created per block
+    uint256 public startBlock = 0; 
 
     PoolInfo[] public poolInfo; // Info of each pool.
     mapping(uint256 => mapping(address => UserInfo)) public userInfo; // Info of each user that stakes LP tokens.
